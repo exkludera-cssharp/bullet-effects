@@ -24,7 +24,7 @@
 ## example config
 
 **Enable** - Default: `false` (option to disable per effect) <br>
-**File**: - Default: `see examples below` (particle file to use on the effect) <br>
+**File**: - Default: `see examples below` (particle file to use on the effect, tutorial after) <br>
 **Permission** - Default: `""` (empty for no check, @css/reservation for vip) <br>
 **Team** - Default: `""` (T for Terrorist, CT for CounterTerrorist or empty for both) <br>
 
@@ -59,5 +59,14 @@
   }
 }
 ```
+
+Tutorial to find any particles for game:
+1. Download GCFScape (you can find it by yourself or download .zip [here](https://gamebanana.com/tools/26)
+2. Open the program
+3. Go to "File" -> "Open"
+4. Navigate to your cs folder (e.g. ...Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo
+5. Choose file "pak01_dir.vpk"
+6. In opened archive open "root"->"particles"
+7. Here you go, use any file path (do not be afraid of .vpcf_c - game will convert it to .vpcf automatically)
 
 <br> <a href="https://ko-fi.com/exkludera" target="blank"><img src="https://cdn.ko-fi.com/cdn/kofi5.png" height="48px" alt="Buy Me a Coffee at ko-fi.com"></a>
