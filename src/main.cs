@@ -1,147 +1,153 @@
-using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.Drawing;
-using static CounterStrikeSharp.API.Core.Listeners;
-
-namespace BulletEffects;
 
 public partial class Plugin : BasePlugin, IPluginConfig<Config>
 {
     public override string ModuleName => "Bullet Effects";
-    public override string ModuleVersion => "1.0.2";
+    public override string ModuleVersion => "1.0.3";
     public override string ModuleAuthor => "exkludera";
+
+    private EffectHelper? _effectHelper;
 
     public override void Load(bool hotReload)
     {
-        RegisterEventHandler<EventBulletImpact>(BulletImpact);
-        RegisterListener<OnServerPrecacheResources>(OnServerPrecacheResources);
+        _effectHelper = new EffectHelper(this);
 
+        RegisterListener<Listeners.OnServerPrecacheResources>(OnServerPrecacheResources);
+
+        RegisterEventHandler<EventBulletImpact>(EventBulletImpact);
+        RegisterEventHandler<EventPlayerDeath>(EventPlayerDeath);
+        RegisterEventHandler<EventPlayerHurt>(EventPlayerHurt);
     }
     public override void Unload(bool hotReload)
     {
-        RemoveListener<OnServerPrecacheResources>(OnServerPrecacheResources);
+        RemoveListener<Listeners.OnServerPrecacheResources>(OnServerPrecacheResources);
+
+        DeregisterEventHandler<EventBulletImpact>(EventBulletImpact);
+        DeregisterEventHandler<EventPlayerDeath>(EventPlayerDeath);
+        DeregisterEventHandler<EventPlayerHurt>(EventPlayerHurt);
     }
 
     public Config Config { get; set; } = new Config();
-    public void OnConfigParsed(Config config)
-    {
-        Config = config;
-    }
+    public void OnConfigParsed(Config config) => Config = config;
 
     public void OnServerPrecacheResources(ResourceManifest manifest)
     {
-        PrecacheResource(manifest, Config.Impact.File);
-        PrecacheResource(manifest, Config.HitEffect.File);
-        PrecacheResource(manifest, Config.KillEffect.File);
-    }
+        List<string> resources =
+        [
+            Config.Impact.Particle,
+            Config.HitEffect.Particle,
+            Config.KillEffect.Particle,
+        ];
 
-    private void CreateEffect(string effectName, CCSPlayerController player, Vector Position, string effectFile, string colorValue = "", float width = 0, float lifetime = 1.0f)
-    {
-        Vector Pos = new Vector(Position.X, Position.Y, Position.Z);
-        Vector bulletDestination = new Vector(Position.X, Position.Y, Position.Z);
-
-        string soundPath = "";
-
-        switch (effectName.ToLower())
+        foreach (string resource in resources)
         {
-            case "impact":
-                effectName = string.IsNullOrEmpty(effectFile) ? "impact" : "impactparticle";
-                break;
-            case "hiteffect":
-                bulletDestination.Z += Config.HitEffect.Height;
-                soundPath = Config.HitEffect.Sound;
-                break;
-            case "killeffect":
-                bulletDestination.Z += Config.KillEffect.Height;
-                soundPath = Config.KillEffect.Sound;
-                break;
-        }
-
-        if (effectName == "tracer" || effectName == "impact")
-        {
-            var tracer = Utilities.CreateEntityByName<CBeam>("env_beam")!;
-
-            Color color = ParseColor(colorValue);
-            tracer.Render = color;
-
-            tracer.Width = width;
-            tracer.DispatchSpawn();
-
-            if (effectName == "tracer")
-                Pos = GetEyePosition(player);
-
-            if (effectName == "impact")
-            {
-                Pos.Z += width;
-                bulletDestination.Z -= width;
-            }
-
-            tracer.Teleport(Pos);
-
-            tracer.EndPos.X = bulletDestination.X;
-            tracer.EndPos.Y = bulletDestination.Y;
-            tracer.EndPos.Z = bulletDestination.Z;
-
-            Utilities.SetStateChanged(tracer, "CBeam", "m_vecEndPos");
-
-            AddTimer(lifetime, tracer.Remove);
-        }
-        else
-        {
-            var particle = Utilities.CreateEntityByName<CParticleSystem>("info_particle_system")!;
-
-            particle.EffectName = effectFile;
-            particle.DispatchSpawn();
-            particle.AcceptInput("Start");
-
-            particle.Teleport(bulletDestination);
-
-            player.ExecuteClientCommand($"play {soundPath}");
-
-            AddTimer(1.0f, particle.Remove);
+            if (!string.IsNullOrEmpty(resource))
+                manifest.AddResource(resource);
         }
     }
 
-    public HookResult BulletImpact(EventBulletImpact @event, GameEventInfo info)
+    HookResult EventBulletImpact(EventBulletImpact @event, GameEventInfo info)
     {
         var player = @event.Userid;
 
         if (player == null)
             return HookResult.Continue;
 
+        Vector StartPos = Utils.GetEyePosition(player);
         Vector EndPos = new Vector(@event.X, @event.Y, @event.Z);
 
-        if (Config.Tracer.Enable && HasPermission(player, "tracer"))
-            CreateEffect("tracer", player, EndPos, "", Config.Tracer.Color, Config.Tracer.Width, Config.Tracer.Lifetime);
+        if (Config.Tracer.Enable)
+        {
+            List<string> permission = Config.Tracer.Permission;
+            string team = Config.Tracer.Team;
+            string color = Config.Tracer.Color;
+            float width = Config.Tracer.Width;
+            float lifetime = Config.Tracer.Lifetime;
+            string sound = Config.Tracer.Sound;
 
-        if (Config.Impact.Enable && HasPermission(player, "impact"))
-            CreateEffect("impact", player, EndPos, Config.Impact.File, Config.Impact.Color, Config.Impact.Width, Config.Impact.Lifetime);
+            if (Utils.HasPermission(player, permission, team))
+                _effectHelper?.CreateTracer(StartPos, EndPos, color, width, lifetime, sound);
+        }
+
+        if (Config.Impact.Enable)
+        {
+            List<string> permission = Config.Impact.Permission;
+            string team = Config.Impact.Team;
+            string particle = Config.Impact.Particle;
+            float lifetime = Config.Impact.Lifetime;
+            string sound = Config.Impact.Sound;
+
+            if (Utils.HasPermission(player, permission, team))
+                _effectHelper?.CreateParticle(EndPos, particle, lifetime, sound);
+        }
 
         return HookResult.Continue;
     }
 
-    [GameEventHandler]
-    public HookResult PlayerHurt(EventPlayerHurt @event, GameEventInfo info)
+    HookResult EventPlayerHurt(EventPlayerHurt @event, GameEventInfo info)
     {
-        if (@event.Userid == null || @event.Attacker == null)
+        if (!Config.HitEffect.Enable)
             return HookResult.Continue;
 
-        if (Config.HitEffect.Enable && HasPermission(@event.Attacker, "hiteffect"))
-            CreateEffect("hiteffect", @event.Attacker, @event.Userid.PlayerPawn.Value!.AbsOrigin!, Config.HitEffect.File);
+        CCSPlayerController? victim = @event.Userid;
+        if (victim == null) return HookResult.Continue;
+
+        Vector? VictimPos = victim.AbsOrigin;
+        if (VictimPos == null) return HookResult.Continue;
+
+        CCSPlayerController? attacker = @event.Attacker;
+        if (attacker == null) return HookResult.Continue;
+
+        List<string> permission = Config.HitEffect.Permission;
+        string team = Config.HitEffect.Team;
+        string particle = Config.HitEffect.Particle;
+        float lifetime = Config.HitEffect.Lifetime;
+        string sound = Config.HitEffect.Sound;
+
+        if (Utils.HasPermission(attacker, permission, team))
+            _effectHelper?.CreateParticle(VictimPos, particle, lifetime, sound, victim);
 
         return HookResult.Continue;
     }
 
-    [GameEventHandler]
-    public HookResult PlayerDeath(EventPlayerDeath @event, GameEventInfo info)
+    HookResult EventPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
     {
-        if (@event.Userid == null || @event.Attacker == null)
-            return HookResult.Continue;
+        CCSPlayerController? victim = @event.Userid;
+        if (victim == null) return HookResult.Continue;
 
-        if (Config.KillEffect.Enable && HasPermission(@event.Attacker, "killeffect"))
-            CreateEffect("killeffect", @event.Attacker, @event.Userid.PlayerPawn.Value!.AbsOrigin!, Config.KillEffect.File);
+        Vector? VictimPos = victim.AbsOrigin;
+        if (VictimPos == null) return HookResult.Continue;
+
+        CCSPlayerController? attacker = @event.Attacker;
+        if (attacker == null) return HookResult.Continue;
+
+        Vector? AttackerPos = attacker.AbsOrigin;
+        if (AttackerPos == null) return HookResult.Continue;
+
+        if (Config.KillEffect.Enable)
+        {
+            List<string> permission = Config.KillEffect.Permission;
+            string team = Config.KillEffect.Team;
+            string particle = Config.KillEffect.Particle;
+            float lifetime = Config.KillEffect.Lifetime;
+            string sound = Config.KillEffect.Sound;
+
+            if (Utils.HasPermission(attacker, permission, team))
+                _effectHelper?.CreateParticle(VictimPos, particle, lifetime, sound, victim);
+        }
+
+        if (Config.KillerEffect.Enable)
+        {
+            List<string> permission = Config.KillerEffect.Permission;
+            string team = Config.KillerEffect.Team;
+            string particle = Config.KillerEffect.Particle;
+            float lifetime = Config.KillerEffect.Lifetime;
+            string sound = Config.KillerEffect.Sound;
+
+            if (Utils.HasPermission(attacker, permission, team))
+                _effectHelper?.CreateParticle(AttackerPos, particle, lifetime, sound, attacker);
+        }
 
         return HookResult.Continue;
     }

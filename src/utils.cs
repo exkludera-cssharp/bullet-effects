@@ -3,52 +3,39 @@ using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Drawing;
 
-namespace BulletEffects;
-
-public partial class Plugin : BasePlugin, IPluginConfig<Config>
+internal class Utils
 {
-    private bool HasPermission(CCSPlayerController player, string id)
+    public static bool HasPermission(CCSPlayerController player, List<string> Permissions, string Team)
     {
-        string permission = string.Empty;
-        string team = string.Empty;
-
-        switch (id)
-        {
-            case "tracer":
-                permission = Config.Tracer.Permission;
-                team = Config.Tracer.Team;
-                break;
-            case "impact":
-                permission = Config.Impact.Permission;
-                team = Config.Impact.Team;
-                break;
-            case "hiteffect":
-                permission = Config.HitEffect.Permission;
-                team = Config.HitEffect.Team;
-                break;
-            case "killeffect":
-                permission = Config.KillEffect.Permission;
-                team = Config.KillEffect.Team;
-                break;
-        }
-
-        return (string.IsNullOrEmpty(permission) || AdminManager.PlayerHasPermissions(player, permission)) &&
-               isTeamValid(player, team.ToLower());
+        return PermissionCheck(player, Permissions) && AllowedTeam(player, Team);
     }
 
-    public bool isTeamValid(CCSPlayerController player, string team)
+    public static bool PermissionCheck(CCSPlayerController player, List<string> Permissions)
     {
-        return (team == "t" || team == "terrorist") && player.Team == CsTeam.Terrorist ||
-               (team == "ct" || team == "counterterrorist") && player.Team == CsTeam.CounterTerrorist ||
-               string.IsNullOrEmpty(team) || team == "both" || team == "all";
+        if (Permissions.Count <= 0 || Permissions.All(string.IsNullOrEmpty))
+            return true;
+
+        foreach (string perm in Permissions)
+        {
+            if (perm.StartsWith("@") && AdminManager.PlayerHasPermissions(player, perm))
+                return true;
+            if (perm.StartsWith("#") && AdminManager.PlayerInGroup(player, perm))
+                return true;
+        }
+
+        return false;
     }
 
-    private void PrecacheResource(ResourceManifest manifest, string file)
+    public static bool AllowedTeam(CCSPlayerController player, string Team)
     {
-        if (!string.IsNullOrEmpty(file))
-        {
-            manifest.AddResource(file);
-        }
+        Team = Team.ToLower();
+
+        bool isTeamValid =
+            (Team == "t" || Team == "terrorist") && player.Team == CsTeam.Terrorist ||
+            (Team == "ct" || Team == "counterterrorist") && player.Team == CsTeam.CounterTerrorist ||
+            (Team == "" || Team == "both" || Team == "all");
+
+        return isTeamValid;
     }
 
     public static Vector GetEyePosition(CCSPlayerController player)
@@ -59,19 +46,8 @@ public partial class Plugin : BasePlugin, IPluginConfig<Config>
         return new Vector(absorigin.X, absorigin.Y, absorigin.Z + camera.OldPlayerViewOffsetZ);
     }
 
-    public static QAngle GetNormalizedAngles(CCSPlayerController player)
-    {
-        QAngle AbsRotation = player.PlayerPawn.Value!.AbsRotation!;
-        return new QAngle(
-            AbsRotation.X,
-            (float)Math.Round(AbsRotation.Y / 10.0) * 10,
-            AbsRotation.Z
-        );
-    }
-
-    private int colorIndex = 0;
-
-    private Color ParseColor(string colorValue)
+    private static int colorIndex = 0;
+    public static Color ParseColor(string colorValue)
     {
         if (string.IsNullOrEmpty(colorValue) || colorValue.ToLower() == "random")
         {
@@ -90,7 +66,7 @@ public partial class Plugin : BasePlugin, IPluginConfig<Config>
         return Color.FromArgb(255, 255, 255, 255);
     }
 
-    Color[] rainbowColors = {
+    static Color[] rainbowColors = {
         Color.FromArgb(255, 255, 255, 255), // White
         Color.FromArgb(255, 255, 0, 0),     // Red
         Color.FromArgb(255, 255, 0, 255),   // Magenta

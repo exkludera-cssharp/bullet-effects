@@ -1,5 +1,6 @@
 # cs2-bullet-effects
-**a plugin that creates effects on shooting & attacking**
+
+**a plugin that creates effects on shooting, hitting & killing players**
 
 <br>
 
@@ -16,22 +17,24 @@
 ## information:
 
 ### requirements
-- [MetaMod](https://cs2.poggu.me/metamod/installation)
+
+- [MetaMod](https://github.com/alliedmodders/metamod-source)
 - [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
 
 <br>
 
 ## example config
 
-**Enable** - Default: `false` (option to disable per effect) <br>
-**File**: - Default: `see examples below` (particle file to use on the effect) <br>
-**Permission** - Default: `""` (empty for no check, @css/reservation for vip) <br>
+**Enable** - Default: `false` (option to disable/enable per effect) <br>
+**Permission** - Default: `[""]` (empty for no check, flags or groups can be used) <br>
 **Team** - Default: `""` (T for Terrorist, CT for CounterTerrorist or empty for both) <br>
+**Particle**: - Default: `""` (particle file to use on the effect) <br>
+**Lifetime** - Default: `3` (how many seconds the the effect should last) <br>
+**Sound** - Default: `""` (sound event) <br>
 
+**tracer only:** <br>
 **Color** - Default: `"random"` (value is RGB (255 255 255)) <br>
 **Width** - Default: `1` (set how wide the beam should be) <br>
-**Lifetime** - Default: `3` (how many seconds the the effect should last) <br>
-**Height** - Default: `0` (how many units to add on vitim AbsOrigin) <br>
 
 ```json
 {
@@ -43,19 +46,23 @@
   },
   "Impact": {
     "Enable": true,
-    "File": "particles/ambient_fx/aircraft_navred.vpcf",
+    "Particle": "particles/ambient_fx/aircraft_navred.vpcf"
   },
   "HitEffect": {
     "Enable": true,
-    "File": "particles/weapons/cs_weapon_fx/weapon_taser_glow.vpcf",
-    "Height": 32
+    "Particle": "particles/weapons/cs_weapon_fx/weapon_taser_glow.vpcf"
   },
   "KillEffect": {
     "Enable": true,
-    "File": "particles/explosions_fx/explosion_basic.vpcf",
-    "Permission": "",
-    "Team": "",
-    "Height": 0
+    "Particle": "particles/explosions_fx/explosion_basic.vpcf"
+  },
+  "KillerEffect": {
+    "Enable": true,
+    "Permission": ["@css/reservation"],
+    "Team": "T",
+    "Particle": "particles/explosions_fx/explosion_basic.vpcf",
+    "Lifetime": 3,
+    "Sound": "UI.XP.Milestone_03"
   }
 }
 ```
