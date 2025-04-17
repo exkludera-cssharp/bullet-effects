@@ -45,12 +45,12 @@ public class EffectHelper
         var particle = Utilities.CreateEntityByName<CParticleSystem>("info_particle_system")!;
 
         particle.EffectName = particleFile;
+        particle.StartActive = true;
         particle.Teleport(position);
         particle.DispatchSpawn();
-        particle.AcceptInput("Start");
 
         if (player != null)
-            particle.AcceptInput("FollowEntity", player, particle, "!activator");
+            particle.AcceptInput("FollowEntity", player.PlayerPawn.Value, particle, "!activator");
 
         if (!string.IsNullOrEmpty(sound))
             particle.EmitSound(sound);

@@ -93,7 +93,7 @@ public partial class Plugin : BasePlugin, IPluginConfig<Config>
         CCSPlayerController? victim = @event.Userid;
         if (victim == null) return HookResult.Continue;
 
-        Vector? VictimPos = victim.AbsOrigin;
+        Vector? VictimPos = victim.PlayerPawn.Value?.AbsOrigin;
         if (VictimPos == null) return HookResult.Continue;
 
         CCSPlayerController? attacker = @event.Attacker;
@@ -116,13 +116,13 @@ public partial class Plugin : BasePlugin, IPluginConfig<Config>
         CCSPlayerController? victim = @event.Userid;
         if (victim == null) return HookResult.Continue;
 
-        Vector? VictimPos = victim.AbsOrigin;
+        Vector? VictimPos = victim.PlayerPawn.Value?.AbsOrigin;
         if (VictimPos == null) return HookResult.Continue;
 
         CCSPlayerController? attacker = @event.Attacker;
         if (attacker == null) return HookResult.Continue;
 
-        Vector? AttackerPos = attacker.AbsOrigin;
+        Vector? AttackerPos = attacker.PlayerPawn.Value?.AbsOrigin;
         if (AttackerPos == null) return HookResult.Continue;
 
         if (Config.KillEffect.Enable)
